@@ -1,0 +1,11 @@
+.git
+.scratch
+.remember
+.repowise
+.DS_Store
+*.md
+!go.mod
+!go.sum
+vendor/
+node_modules/
+.claude/
