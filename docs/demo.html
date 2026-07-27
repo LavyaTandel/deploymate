@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DeployMate Demo</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0a0a0b; color: #fafafa; font-family: 'Inter', system-ui, sans-serif; overflow: hidden; }
+
+.slide { display: none; width: 100vw; height: 100vh; flex-direction: column; align-items: center; justify-content: center; padding: 60px; }
+.slide.active { display: flex; }
+
+/* Slide 1: Title */
+.title-slide h1 { font-size: 64px; font-weight: 700; margin-bottom: 16px; }
+.title-slide h1 span { color: #6366f1; }
+.title-slide p { font-size: 24px; color: #a1a1aa; margin-bottom: 40px; }
+.title-slide .badge { background: #1c1c1f; border: 1px solid #27272a; border-radius: 8px; padding: 12px 24px; font-size: 14px; color: #a1a1aa; }
+.title-slide .badge span { color: #22c55e; }
+
+/* Slide 2: Architecture */
+.arch-slide { align-items: flex-start; }
+.arch-slide h2 { font-size: 36px; margin-bottom: 40px; }
+.arch-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; width: 100%; }
+.arch-card { background: #141416; border: 1px solid #27272a; border-radius: 12px; padding: 24px; }
+.arch-card h3 { font-size: 18px; margin-bottom: 8px; color: #6366f1; }
+.arch-card p { font-size: 14px; color: #a1a1aa; line-height: 1.5; }
+
+/* Slide 3: Dashboard */
+.dashboard-slide { align-items: flex-start; }
+.dashboard-slide h2 { font-size: 36px; margin-bottom: 30px; }
+.dashboard { display: grid; grid-template-columns: 240px 1fr; gap: 0; width: 100%; height: 70vh; border: 1px solid #27272a; border-radius: 12px; overflow: hidden; }
+.sidebar { background: #141416; border-right: 1px solid #27272a; padding: 20px; }
+.sidebar h3 { font-size: 18px; margin-bottom: 24px; display: flex; align-items: center; gap: 8px; }
+.sidebar h3 .icon { color: #6366f1; }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 6px; font-size: 14px; color: #a1a1aa; margin-bottom: 4px; }
+.nav-item.active { background: #1c1c1f; color: #fafafa; }
+.main-content { padding: 24px; overflow: hidden; }
+.main-content h3 { font-size: 20px; margin-bottom: 16px; }
+.deploy-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+.deploy-card { background: #1c1c1f; border: 1px solid #27272a; border-radius: 8px; padding: 16px; }
+.deploy-card .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.deploy-card .service { font-weight: 600; font-size: 14px; }
+.status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 4px 10px; border-radius: 12px; }
+.status.running { background: rgba(34,197,94,0.15); color: #22c55e; }
+.status.deploying { background: rgba(59,130,246,0.15); color: #3b82f6; }
+.status.failed { background: rgba(239,68,68,0.15); color: #ef4444; }
+.status .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.deploy-card .info { font-size: 12px; color: #71717a; line-height: 1.8; }
+
+/* Slide 4: Event Stream */
+.events-section { background: #141416; border: 1px solid #27272a; border-radius: 8px; padding: 16px; }
+.events-section h4 { font-size: 14px; margin-bottom: 12px; color: #a1a1aa; }
+.event { display: flex; align-items: center; gap: 12px; padding: 6px 0; font-size: 13px; border-bottom: 1px solid #1c1c1f; }
+.event:last-child { border: none; }
+.event .time { color: #71717a; font-family: 'JetBrains Mono', monospace; font-size: 11px; width: 70px; }
+.event .type { color: #fafafa; flex: 1; }
+.event .detail { color: #a1a1aa; }
+.event .check { color: #22c55e; }
+
+/* Slide 5: Policy */
+.policy-slide { align-items: flex-start; }
+.policy-slide h2 { font-size: 36px; margin-bottom: 30px; }
+.policy-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; width: 100%; }
+.policy-card { background: #141416; border: 1px solid #27272a; border-radius: 12px; padding: 24px; }
+.policy-card h3 { font-size: 16px; margin-bottom: 12px; }
+.policy-card code { background: #1c1c1f; padding: 2px 6px; border-radius: 4px; font-size: 12px; color: #6366f1; }
+
+/* Slide 6: Rollback */
+.rollback-slide { align-items: center; text-align: center; }
+.rollback-slide h2 { font-size: 48px; margin-bottom: 20px; }
+.rollback-slide p { font-size: 20px; color: #a1a1aa; margin-bottom: 40px; }
+.rollback-btn { background: #ef4444; color: white; border: none; padding: 16px 32px; border-radius: 8px; font-size: 18px; font-weight: 600; cursor: pointer; animation: pulse 2s infinite; }
+@keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+.rollback-result { margin-top: 24px; font-size: 16px; color: #22c55e; opacity: 0; animation: fadeIn 0.5s 1s forwards; }
+@keyframes fadeIn { to { opacity: 1; } }
+
+/* Slide 7: CTA */
+.cta-slide h2 { font-size: 48px; margin-bottom: 16px; }
+.cta-slide p { font-size: 20px; color: #a1a1aa; margin-bottom: 40px; }
+.cta-link { color: #6366f1; font-size: 18px; text-decoration: none; border-bottom: 2px solid #6366f1; padding-bottom: 4px; }
+.stats { display: flex; gap: 48px; margin-top: 40px; }
+.stat { text-align: center; }
+.stat .num { font-size: 36px; font-weight: 700; color: #6366f1; }
+.stat .label { font-size: 14px; color: #a1a1aa; margin-top: 4px; }
+
+/* Transitions */
+.slide { animation: none; }
+.slide.enter { animation: slideIn 0.5s ease-out; }
+@keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Progress bar */
+.progress { position: fixed; top: 0; left: 0; height: 3px; background: #6366f1; transition: width 0.3s; z-index: 100; }
+
+/* Controls */
+.controls { position: fixed; bottom: 24px; right: 24px; display: flex; gap: 8px; z-index: 100; }
+.controls button { background: #1c1c1f; border: 1px solid #27272a; color: #a1a1aa; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+.controls button:hover { background: #27272a; color: #fafafa; }
+.slide-num { position: fixed; bottom: 28px; left: 24px; font-size: 13px; color: #71717a; z-index: 100; }
+</style>
+</head>
+<body>
+
+<div class="progress" id="progress"></div>
+<div class="slide-num" id="slideNum"></div>
+<div class="controls">
+  <button onclick="prevSlide()">← Prev</button>
+  <button onclick="nextSlide()">Next →</button>
+  <button onclick="toggleAuto()">Auto Play</button>
+</div>
+
+<!-- Slide 1: Title -->
+<div class="slide title-slide active" data-slide="0">
+  <h1><span>Deploy</span>Mate</h1>
+  <p>Lightweight GitOps Deployment Engine</p>
+  <div class="badge">Go • Kubernetes • PostgreSQL • Redis <span>●</span> Built from scratch</div>
+</div>
+
+<!-- Slide 2: Architecture -->
+<div class="slide arch-slide" data-slide="1">
+  <h2>Architecture</h2>
+  <div class="arch-grid">
+    <div class="arch-card">
+      <h3>Engine API</h3>
+      <p>Chi router, OIDC auth, Redis cache (5s TTL), PostgreSQL with JSONB. Serves desired state to agents.</p>
+    </div>
+    <div class="arch-card">
+      <h3>Edge Agents</h3>
+      <p>Lightweight Go binaries polling every 10s. client-go reconciliation. OPA policy enforcement at edge.</p>
+    </div>
+    <div class="arch-card">
+      <h3>Multi-Cloud</h3>
+      <p>Unified Deployer interface: Kubernetes, Cloud Run, ECS Fargate, VMs via SSH. Same API, different backends.</p>
+    </div>
+    <div class="arch-card">
+      <h3>Policy Engine</h3>
+      <p>OPA Rego evaluation. Dual eval: central (pre-deploy) + edge (drift detection). Sigstore bundle signing.</p>
+    </div>
+    <div class="arch-card">
+      <h3>Preview Envs</h3>
+      <p>PR-triggered preview environments. GitHub webhook → unique namespace → auto-destroy on close.</p>
+    </div>
+    <div class="arch-card">
+      <h3>Real-Time</h3>
+      <p>SSE event streaming. Dashboard receives deployment.progress, health.check, rollback events live.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 3: Dashboard -->
+<div class="slide dashboard-slide" data-slide="2">
+  <h2>Dashboard</h2>
+  <div class="dashboard">
+    <div class="sidebar">
+      <h3><span class="icon">🚀</span> DeployMate</h3>
+      <div class="nav-item active">📊 Overview</div>
+      <div class="nav-item">🚀 Deployments</div>
+      <div class="nav-item">🌐 Agents</div>
+      <div class="nav-item">🛡 Policies</div>
+      <div class="nav-item">⚙ Settings</div>
+    </div>
+    <div class="main-content">
+      <h3>Deployments</h3>
+      <div class="deploy-grid">
+        <div class="deploy-card">
+          <div class="header">
+            <span class="service">api-gateway</span>
+            <span class="status running"><span class="dot"></span>Running</span>
+          </div>
+          <div class="info">
+            Image: gcr.io/proj/api@sha256:abc...<br>
+            Replicas: 3/3<br>
+            Last deploy: 2m ago
+          </div>
+        </div>
+        <div class="deploy-card">
+          <div class="header">
+            <span class="service">auth-service</span>
+            <span class="status deploying"><span class="dot"></span>Deploying</span>
+          </div>
+          <div class="info">
+            Image: gcr.io/proj/auth@sha256:def...<br>
+            Replicas: 2/3<br>
+            Last deploy: 30s ago
+          </div>
+        </div>
+        <div class="deploy-card">
+          <div class="header">
+            <span class="service">payment-worker</span>
+            <span class="status failed"><span class="dot"></span>Failed</span>
+          </div>
+          <div class="info">
+            Image: gcr.io/proj/pay@sha256:ghi...<br>
+            Replicas: 0/2<br>
+            Last deploy: 5m ago
+          </div>
+        </div>
+      </div>
+      <div class="events-section">
+        <h4>Recent Events</h4>
+        <div class="event"><span class="time">02:10:15</span><span class="type">deployment.started</span><span class="detail">api-gateway</span></div>
+        <div class="event"><span class="time">02:10:18</span><span class="type">policy.evaluated</span><span class="check">✓ passed</span></div>
+        <div class="event"><span class="time">02:10:25</span><span class="type">deploy.progress</span><span class="detail">60%</span></div>
+        <div class="event"><span class="time">02:10:30</span><span class="type">health.check</span><span class="check">✓ 3/3 healthy</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 4: Policy -->
+<div class="slide policy-slide" data-slide="3">
+  <h2>Policy-as-Code</h2>
+  <div class="policy-grid">
+    <div class="policy-card">
+      <h3>🛡 OPA Rego Policies</h3>
+      <p style="color:#a1a1aa; font-size:14px; line-height:1.6;">
+        Deployments evaluated against Rego policies at <code>central</code> and <code>edge</code>.<br><br>
+        • CPU limits enforced<br>
+        • Image provenance verified<br>
+        • Production requires approval<br>
+        • Cost thresholds checked
+      </p>
+    </div>
+    <div class="policy-card">
+      <h3>🔐 Sigstore Signing</h3>
+      <p style="color:#a1a1aa; font-size:14px; line-height:1.6;">
+        Policy bundles signed with <code>Sigstore</code> keyless signing.<br><br>
+        • No key management overhead<br>
+        • OIDC-based identity<br>
+        • Transparency log (Rekor)<br>
+        • 48h bundle staleness tolerance
+      </p>
+    </div>
+    <div class="policy-card">
+      <h3>🔄 Dual Evaluation</h3>
+      <p style="color:#a1a1aa; font-size:14px; line-height:1.6;">
+        <code>Central</code>: Pre-deploy gate blocks non-compliant deployments.<br><br>
+        <code>Edge</code>: Runtime drift detection triggers autonomous rollback.
+      </p>
+    </div>
+    <div class="policy-card">
+      <h3>📦 Bundle Distribution</h3>
+      <p style="color:#a1a1aa; font-size:14px; line-height:1.6;">
+        Engine signs → agents verify → cache locally.<br><br>
+        • Survives engine outages<br>
+        • Incremental updates<br>
+        • Tamper-evident via Rekor
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 5: Rollback -->
+<div class="slide rollback-slide" data-slide="4">
+  <h2>Instant Rollback</h2>
+  <p>One-click rollback. 3/hr guardrail. Agent reconciles in &lt;10s.</p>
+  <button class="rollback-btn" onclick="simulateRollback()">🔄 Rollback Now</button>
+  <div class="rollback-result" id="rollbackResult">✓ Rolled back to v41 — api-gateway healthy</div>
+</div>
+
+<!-- Slide 6: Stats -->
+<div class="slide cta-slide" data-slide="5">
+  <h2>DeployMate</h2>
+  <p>Production-grade GitOps. Built from scratch.</p>
+  <a href="https://github.com/LavyaTandel/deploymate" class="cta-link">github.com/LavyaTandel/deploymate</a>
+  <div class="stats">
+    <div class="stat"><div class="num">25</div><div class="label">Go Files</div></div>
+    <div class="stat"><div class="num">10</div><div class="label">Test Suites</div></div>
+    <div class="stat"><div class="num">4</div><div class="label">Cloud Providers</div></div>
+    <div class="stat"><div class="num">18</div><div class="label">Arch Decisions</div></div>
+  </div>
+</div>
+
+<script>
+let current = 0;
+const slides = document.querySelectorAll('.slide');
+const total = slides.length;
+let autoInterval = null;
+
+function showSlide(n) {
+  slides[current].classList.remove('active', 'enter');
+  current = (n + total) % total;
+  slides[current].classList.add('active', 'enter');
+  document.getElementById('progress').style.width = ((current + 1) / total * 100) + '%';
+  document.getElementById('slideNum').textContent = (current + 1) + ' / ' + total;
+}
+
+function nextSlide() { showSlide(current + 1); }
+function prevSlide() { showSlide(current - 1); }
+
+function toggleAuto() {
+  if (autoInterval) {
+    clearInterval(autoInterval);
+    autoInterval = null;
+  } else {
+    autoInterval = setInterval(nextSlide, 5000);
+  }
+}
+
+function simulateRollback() {
+  document.getElementById('rollbackResult').style.opacity = '1';
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowRight' || e.key === ' ') nextSlide();
+  if (e.key === 'ArrowLeft') prevSlide();
+});
+
+showSlide(0);
+</script>
+
+</body>
+</html>

@@ -31,45 +31,49 @@ A lightweight GitOps deployment engine that watches Git repos, builds Docker ima
 └────────┘    └──────────┘  └──────────┘    └──────────┘
 ```
 
-## Quick Start
-
-### Prerequisites
-
-- Go 1.23+
-- PostgreSQL 15+
-- Redis 7+
-- Node.js 18+ (for dashboard)
-
-### Engine API
+## Quick Start (One Command)
 
 ```bash
-# Start PostgreSQL and Redis
-docker-compose up -d
-
-# Run migrations
-psql -d deploymate -f migrations/001_initial.sql
-
-# Start engine
-go run ./cmd/engine
+# Start everything (PostgreSQL + Redis + Engine API)
+docker-compose up --build
 ```
 
-### K8s Agent
+Engine runs at `http://localhost:8080`. Test it:
 
 ```bash
-# Build agent
-go build -o agent ./cmd/agent
+# Health check
+curl http://localhost:8080/healthz
 
-# Run in cluster
-./agent
+# Get desired state (requires OIDC token in production)
+curl http://localhost:8080/api/v1/deployments/test-1/desired-state
 ```
 
-### Dashboard
+### Dashboard (Optional)
 
 ```bash
 cd apps/dashboard
 npm install
 npm run dev
 ```
+
+Dashboard runs at `http://localhost:3000`.
+
+### K8s Agent (Optional)
+
+```bash
+# Build agent
+go build -o agent ./cmd/agent
+
+# Run locally (needs kubeconfig)
+ENGINE_URL=http://localhost:8080 ./agent
+```
+
+### Prerequisites (for local dev without Docker)
+
+- Go 1.23+
+- PostgreSQL 15+
+- Redis 7+
+- Node.js 18+ (for dashboard)
 
 ## Project Structure
 
