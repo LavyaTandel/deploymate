@@ -1,0 +1,19 @@
+services:
+  engine:
+    volumes:
+      - ./:/app
+    environment:
+      DB_HOST: localhost
+      DB_PORT: "5432"
+      REDIS_HOST: localhost
+      REDIS_PORT: "6379"
+      # Local OIDC for testing with GitHub tokens
+      OIDC_ISSUER: https://token.actions.githubusercontent.com
+      OIDC_AUDIENCE: deploymate
+
+  dashboard:
+    volumes:
+      - ./apps/dashboard:/app
+      - /app/node_modules
+    environment:
+      NEXT_PUBLIC_ENGINE_URL: http://localhost:8080

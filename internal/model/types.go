@@ -49,3 +49,19 @@ type PolicyBundle struct {
 	ExpiresAt time.Time `json:"expires_at"`
 	CreatedAt time.Time `json:"created_at"`
 }
+
+type Agent struct {
+	ID            string     `json:"id"`
+	Name          string     `json:"name"`
+	TargetType    string     `json:"target_type"`
+	Status        string     `json:"status"`
+	LastHeartbeat *time.Time `json:"last_heartbeat"`
+}
+
+type SSEEvent struct {
+	ID           string    `json:"id"`
+	DeploymentID string    `json:"deployment_id"`
+	EventType    string    `json:"event_type"`
+	Payload      []byte    `json:"payload"`
+	CreatedAt    time.Time `json:"created_at"`
+}

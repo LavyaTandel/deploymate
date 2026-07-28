@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, use } from 'react'
 import { StatusBadge } from '@/components/StatusBadge'
 
 interface Event {
@@ -9,12 +9,13 @@ interface Event {
   timestamp: string
 }
 
-export default function DeploymentDetailPage({ params }: { params: { id: string } }) {
+export default function DeploymentDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
   const [events, setEvents] = useState<Event[]>([])
   const [connected, setConnected] = useState(false)
 
   useEffect(() => {
-    const es = new EventSource(`/api/v1/events?deployment_id=${params.id}`)
+    const es = new EventSource(`/api/v1/events?deployment_id=${id}`)
 
     es.addEventListener('connected', () => setConnected(true))
     es.addEventListener('heartbeat', () => {})
@@ -28,13 +29,13 @@ export default function DeploymentDetailPage({ params }: { params: { id: string 
     })
 
     return () => es.close()
-  }, [params.id])
+  }, [id])
 
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-semibold">Deployment {params.id}</h1>
+          <h1 className="text-2xl font-semibold">Deployment {id}</h1>
           <StatusBadge status="running" />
         </div>
         <div className="flex items-center gap-2">

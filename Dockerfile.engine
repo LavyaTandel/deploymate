@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.23-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 RUN apk add --no-cache git ca-certificates
 
@@ -13,10 +13,14 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /engine ./cmd/engine
 
 # Runtime stage
-FROM gcr.io/distroless/static-debian12
+FROM alpine:3.21
 
 COPY --from=builder /engine /engine
+RUN apk add --no-cache wget
 
 EXPOSE 8080
+
+HEALTHCHECK --interval=5s --timeout=5s --retries=5 --start-period=10s \
+  CMD wget -qO- http://localhost:8080/healthz || exit 1
 
 ENTRYPOINT ["/engine"]

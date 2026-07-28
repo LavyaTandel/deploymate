@@ -58,6 +58,40 @@ func (h *DesiredStateHandler) GetDesiredState(w http.ResponseWriter, r *http.Req
 	writeJSON(w, spec)
 }
 
+func (h *DesiredStateHandler) ListDeployments(w http.ResponseWriter, r *http.Request) {
+	orgID := r.Header.Get("X-Org-ID")
+	if orgID == "" {
+		http.Error(w, "organization ID required", http.StatusBadRequest)
+		return
+	}
+
+	envFilter := r.URL.Query().Get("env")
+
+	specs, err := h.store.ListDeployments(r.Context(), orgID, envFilter)
+	if err != nil {
+		http.Error(w, "failed to list deployments", http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, specs)
+}
+
+func (h *DesiredStateHandler) ListAgents(w http.ResponseWriter, r *http.Request) {
+	orgID := r.Header.Get("X-Org-ID")
+	if orgID == "" {
+		http.Error(w, "organization ID required", http.StatusBadRequest)
+		return
+	}
+
+	agents, err := h.store.ListAgents(r.Context(), orgID)
+	if err != nil {
+		http.Error(w, "failed to list agents", http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, agents)
+}
+
 func (h *DesiredStateHandler) Rollback(w http.ResponseWriter, r *http.Request) {
 	deploymentID := chi.URLParam(r, "id")
 	if deploymentID == "" {
@@ -71,6 +105,11 @@ func (h *DesiredStateHandler) Rollback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	ctx := r.Context()
+
+	// Invalidate cache to force agent to fetch new desired state
+	h.invalidateCache(ctx, orgID, deploymentID)
+
 	response := map[string]interface{}{
 		"deployment_id": deploymentID,
 		"status":        "rollback_initiated",
@@ -79,6 +118,83 @@ func (h *DesiredStateHandler) Rollback(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+}
+
+func (h *DesiredStateHandler) UpdateDeploymentStatus(w http.ResponseWriter, r *http.Request) {
+	deploymentID := chi.URLParam(r, "id")
+	if deploymentID == "" {
+		http.Error(w, "deployment ID required", http.StatusBadRequest)
+		return
+	}
+
+	agentID := r.Header.Get("X-Agent-ID")
+	if agentID == "" {
+		http.Error(w, "agent ID required", http.StatusBadRequest)
+		return
+	}
+
+	var status model.DeploymentStatus
+	if err := json.NewDecoder(r.Body).Decode(&status); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	status.ID = deploymentID
+
+	// Store status update
+	if err := h.store.UpdateDeploymentStatus(r.Context(), deploymentID, &status); err != nil {
+		http.Error(w, "failed to update status", http.StatusInternalServerError)
+		return
+	}
+
+	// Broadcast status update via SSE
+	h.broadcastEvent(deploymentID, "deployment.status", map[string]interface{}{
+		"deployment_id": deploymentID,
+		"agent_id":      agentID,
+		"phase":         status.Phase,
+		"message":       status.Message,
+		"progress":      status.ProgressPct,
+		"timestamp":     time.Now().Unix(),
+	})
+
+	writeJSON(w, map[string]string{"status": "updated"})
+}
+
+func (h *DesiredStateHandler) AgentHeartbeat(w http.ResponseWriter, r *http.Request) {
+	agentID := chi.URLParam(r, "id")
+	if agentID == "" {
+		http.Error(w, "agent ID required", http.StatusBadRequest)
+		return
+	}
+
+	orgID := r.Header.Get("X-Org-ID")
+	if orgID == "" {
+		http.Error(w, "organization ID required", http.StatusBadRequest)
+		return
+	}
+
+	// Update agent heartbeat
+	if err := h.store.UpdateAgentHeartbeat(r.Context(), agentID, orgID); err != nil {
+		http.Error(w, "failed to update heartbeat", http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, map[string]string{"status": "ok"})
+}
+
+func (h *DesiredStateHandler) GetDeploymentEvents(w http.ResponseWriter, r *http.Request) {
+	deploymentID := chi.URLParam(r, "id")
+	if deploymentID == "" {
+		http.Error(w, "deployment ID required", http.StatusBadRequest)
+		return
+	}
+
+	events, err := h.store.GetDeploymentEvents(r.Context(), deploymentID, 50)
+	if err != nil {
+		http.Error(w, "failed to get events", http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, events)
 }
 
 func (h *DesiredStateHandler) Events(w http.ResponseWriter, r *http.Request) {
@@ -137,6 +253,19 @@ func (h *DesiredStateHandler) setCache(ctx context.Context, orgID, deploymentID 
 	h.cache.Set(ctx, key, spec, 5*time.Second)
 }
 
+func (h *DesiredStateHandler) invalidateCache(ctx context.Context, orgID, deploymentID string) {
+	key := "deploymate:desired:" + orgID + ":" + deploymentID
+	h.cache.Del(ctx, key)
+}
+
+func (h *DesiredStateHandler) broadcastEvent(deploymentID, eventType string, data interface{}) {
+	// TODO: Implement SSE broadcast to connected clients
+	// For now, just log the event
+	_ = deploymentID
+	_ = eventType
+	_ = data
+}
+
 func writeJSON(w http.ResponseWriter, v interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(v)
@@ -155,6 +284,10 @@ func RegisterRoutes(r chi.Router, handler *DesiredStateHandler) {
 		r.Use(middleware.Logger)
 		r.Use(middleware.Recoverer)
 
+		r.Get("/deployments", handler.ListDeployments)
 		r.Get("/deployments/{id}/desired-state", handler.GetDesiredState)
+		r.Post("/deployments/{id}/rollback", handler.Rollback)
+		r.Get("/agents", handler.ListAgents)
+		r.Get("/events", handler.Events)
 	})
 }

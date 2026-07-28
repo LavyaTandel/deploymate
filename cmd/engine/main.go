@@ -93,15 +93,18 @@ func main() {
 	r.Group(func(r chi.Router) {
 		r.Use(auth.RequireOIDC(oidcValidator))
 
+		r.Get("/api/v1/deployments", deploymentHandler.ListDeployments)
 		r.Get("/api/v1/deployments/{id}/desired-state", deploymentHandler.GetDesiredState)
 		r.Post("/api/v1/deployments/{id}/rollback", deploymentHandler.Rollback)
+		r.Post("/api/v1/deployments/{id}/status", deploymentHandler.UpdateDeploymentStatus)
+		r.Get("/api/v1/deployments/{id}/events", deploymentHandler.GetDeploymentEvents)
+		r.Get("/api/v1/agents", deploymentHandler.ListAgents)
+		r.Post("/api/v1/agents/{id}/heartbeat", deploymentHandler.AgentHeartbeat)
+		r.Get("/api/v1/events", deploymentHandler.Events)
 	})
 
 	// Webhook (HMAC auth, no OIDC)
 	r.Post("/api/v1/webhooks/github", webhookHandler.HandleGitHubWebhook)
-
-	// SSE events (no auth for agent polling)
-	r.Get("/api/v1/events", deploymentHandler.Events)
 
 	// Server
 	port, _ := strconv.Atoi(cfg.Server.Port)

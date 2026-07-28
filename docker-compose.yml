@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:15-alpine
@@ -12,6 +10,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./migrations/001_initial.sql:/docker-entrypoint-initdb.d/001_initial.sql
+      - ./migrations/002_seed_demo.sql:/docker-entrypoint-initdb.d/002_seed_demo.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U deploymate"]
       interval: 5s
@@ -35,6 +34,7 @@ services:
     ports:
       - "8080:8080"
     environment:
+      SERVER_HOST: 0.0.0.0
       SERVER_PORT: "8080"
       DB_HOST: postgres
       DB_PORT: "5432"
@@ -43,10 +43,34 @@ services:
       DB_NAME: deploymate
       REDIS_HOST: redis
       REDIS_PORT: "6379"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/healthz || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     depends_on:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+
+  dashboard:
+    build:
+      context: ./apps/dashboard
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_ENGINE_URL: http://engine:8080
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      engine:
         condition: service_healthy
 
 volumes:
